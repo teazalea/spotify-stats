@@ -1,7 +1,8 @@
+import json
 import os
 import sys
-import json
 from functools import cmp_to_key
+
 
 class FilterFiles:
     def __init__(self, file_path):
@@ -35,17 +36,22 @@ class FilterFiles:
             if self.is_json_file(file) and self.is_audio_file(file):
                 jsons.append(file)
 
-        self.sorted_jsons = sorted(jsons,key=cmp_to_key(self.sort_jsons))
+        self.sorted_jsons = sorted(jsons, key=cmp_to_key(self.sort_jsons))
 
     def get_sorted_jsons(self):
         self.filter_files()
         return self.sorted_jsons
 
 
+def is_valid_listen(song):
+    return (song["skipped"] is not (None or False) and
+            song["ms_played"] >= 60000 and
+            song["spotify_track_uri"] is not None)
+
+
 class GetStats:
     def __init__(self, file_path):
-        self.artist_count_year = {}
-        self.scrobble_count = 0
+        self.listening_data = {}
 
         self.json_files = FilterFiles(file_path).get_sorted_jsons()
 
@@ -56,17 +62,43 @@ class GetStats:
 
     def count_json_stats(self, json_file):
         with open(get_absolute_resources_path() + "\\" + json_file, encoding="utf-8") as f:
-            listening_data = json.load(f)
+            song_data = json.load(f)
 
-        for song in listening_data:
-            print(song["master_metadata_track_name"])
+            for song in song_data:
+                self.count_stats(song)
+
+        return
+
+    def count_stats(self, song):
+        # was not skipped and listened for 1 minute or more
+        if is_valid_listen(song):
+            self.listening_data[song["ts"]] = {
+                "track_name": song["master_metadata_track_name"],
+                "artist_name": song["master_metadata_album_artist_name"],
+                "album_name": song["master_metadata_album_album_name"],
+                "spotify_track_uri": song["spotify_track_uri"]
+            }
+
+    def get_artist_count(self):
+        artist_count = {}
+        for song in self.listening_data.values():
+            artist_count[song["artist_name"]] = artist_count.get(song["artist_name"], 0) + 1
+
+        return artist_count
 
     def run(self):
         self.count_all_stats()
 
+
 def get_absolute_resources_path():
     return os.path.dirname(os.path.abspath(sys.argv[0])) + "\\resources\\my_spotify_data_stream_history\\MyData"
+
 
 if __name__ == "__main__":
     stats = GetStats(get_absolute_resources_path())
     stats.run()
+
+    artist_count = stats.get_artist_count()
+
+    for i in sorted(artist_count.items(), key=lambda x: x[1], reverse=True):
+        print(i)
