@@ -85,6 +85,36 @@ class SpotifyJsonStats:
 
         return sorted(artist_count.items(), key=lambda x: x[1], reverse=True)
 
+    def get_all_played_songs_count(self):
+        song_count = {}
+        for song in self.__listening_data.values():
+            song_count[song["track_name"]] = song_count.get(song["track_name"], 0) + 1
+
+        return sorted(song_count.items(), key=lambda x: x[1], reverse=True)
+
+    def get_song_count_by_month_and_year(self):
+        year_month_count = {}   # dict of arrays in the format [year_total, {month: month_total}]
+        curr_year = "0"
+
+        for k in self.__listening_data.keys():
+            year, month, day = k.split("-")
+            if curr_year != year:
+                curr_year = year
+                year_month_count[curr_year] = [0,{}]
+
+            year_month_count[curr_year] =  self.__get_incr_year_month_stat(year_month_count[curr_year], year, month)
+
+        return year_month_count
+
+    def __get_incr_year_month_stat(self, year_month_count_arr, year, month):
+        year_month_count_arr[0] = year_month_count_arr[0] + 1  # total streams in year
+        year_month_count_arr[1][month] = year_month_count_arr[1].get(month, 0) + 1  # total streams in month
+
+        return year_month_count_arr
+
+    def get_all_stats(self):
+        return self.__listening_data
+
     def run(self):
         self.__count_all_stats()
 
@@ -93,11 +123,18 @@ def get_absolute_resources_path():
     return os.path.dirname(os.path.abspath(sys.argv[0])) + "\\resources\\my_spotify_data_stream_history\\MyData"
 
 
+def print_dict(d):
+    for k, v in d.items():
+        print(k, v)
+
+
 if __name__ == "__main__":
     stats = SpotifyJsonStats(get_absolute_resources_path())
     stats.run()
 
     artist_count = stats.get_artist_count()
+    song_count = stats.get_all_played_songs_count()
+    all_stats = stats.get_all_stats()
+    year_month_count = stats.get_song_count_by_month_and_year()
 
-    for artist in artist_count:
-        print(artist)
+    print_dict(all_stats)
