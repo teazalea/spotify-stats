@@ -30,8 +30,8 @@ class SpotifyFunctions:
         for i in top_songs["items"]:
             print(i["name"])
 
-    def get_song_data(self):
-        self.sp.search()
+    def get_song_data(self, id):
+        self.sp.track(track_id=id)
 
 
 if __name__ == "__main__":
